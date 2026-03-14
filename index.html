@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>逃逸宇宙</title>
+  <meta name="description" content="逃逸宇宙，一个个人想法、产品与实验的中文母站。" />
+  <style>
+    :root {
+      --violet: #8c5cff;
+      --violet-soft: #c5a6ff;
+      --acid: #d2ff38;
+      --acid-soft: #ebff9f;
+      --ink: #121217;
+      --muted: #64677a;
+      --bg-left: #f3ecfa;
+      --bg-right: #10131b;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", sans-serif;
+      color: var(--ink);
+      background: white;
+    }
+
+    .container {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .hero-wrap {
+      position: relative;
+      overflow: hidden;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(140,92,255,0.22), transparent 24%),
+        radial-gradient(circle at 84% 20%, rgba(140,92,255,0.10), transparent 20%),
+        linear-gradient(90deg, #eee4fa 0 50%, #10131b 50% 100%);
+    }
+
+    .hero-wrap::before,
+    .hero-wrap::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .hero-wrap::before {
+      background:
+        radial-gradient(circle at 18% 18%, rgba(140,92,255,0.24), transparent 24%),
+        radial-gradient(circle at 84% 22%, rgba(210,255,56,0.20), transparent 22%),
+        radial-gradient(circle at 50% 78%, rgba(140,92,255,0.14), transparent 26%);
+    }
+
+    .hero-wrap::after {
+      background:
+        linear-gradient(118deg, transparent 0 28%, rgba(255,255,255,0.34) 28.1%, transparent 28.8%),
+        linear-gradient(308deg, transparent 0 74%, rgba(255,255,255,0.28) 74.2%, transparent 74.9%),
+        linear-gradient(22deg, transparent 0 58%, rgba(140,92,255,0.05) 58.2%, transparent 58.8%),
+        linear-gradient(132deg, transparent 0 46%, rgba(255,255,255,0.22) 46.2%, transparent 46.8%),
+        linear-gradient(332deg, transparent 0 62%, rgba(210,255,56,0.16) 62.2%, transparent 62.8%);
+      mix-blend-mode: screen;
+      opacity: 0.88;
+    }
+
+    .topbar {
+      padding: 18px 0;
+      position: relative;
+      z-index: 2;
+    }
+
+    .topbar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 56px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      position: relative;
+      background: radial-gradient(circle at 35% 35%, #d6bcff 0%, var(--violet-soft) 38%, var(--violet) 72%, #6d3cff 100%);
+      box-shadow: 0 16px 30px rgba(140,92,255,0.26);
+    }
+
+    .neuron-mark::before,
+    .neuron-mark::after,
+    .neuron-mark span,
+    .neuron-mark span::before,
+    .neuron-mark span::after {
+      content: "";
+      position: absolute;
+      background: rgba(255,255,255,0.92);
+      border-radius: 999px;
+    }
+
+    .neuron-mark::before {
+      width: 10px;
+      height: 10px;
+      left: 16px;
+      top: 16px;
+      background: white;
+      box-shadow: 0 0 8px rgba(255,255,255,0.6);
+    }
+
+    .neuron-mark::after {
+      width: 2px;
+      height: 18px;
+      left: 20px;
+      top: 8px;
+      transform: rotate(18deg);
+      transform-origin: center bottom;
+    }
+
+    .neuron-mark span {
+      width: 2px;
+      height: 18px;
+      left: 20px;
+      top: 16px;
+      transform: rotate(-26deg);
+      transform-origin: center top;
+    }
+
+    .neuron-mark span::before {
+      width: 2px;
+      height: 12px;
+      left: -5px;
+      top: 10px;
+      transform: rotate(-34deg);
+      transform-origin: center top;
+    }
+
+    .neuron-mark span::after {
+      width: 2px;
+      height: 12px;
+      right: -5px;
+      top: 9px;
+      transform: rotate(38deg);
+      transform-origin: center top;
+    }
+
+    .nav {
+      display: flex;
+      gap: 22px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .nav a {
+      color: #666b7a;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .hero {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 92px);
+      text-align: center;
+      padding: 48px 0 118px;
+      z-index: 2;
+    }
+
+    .hero-content {
+      position: relative;
+      max-width: 980px;
+      z-index: 3;
+      margin-top: 18px;
+    }
+
+    .notice {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 22px;
+      border-radius: 999px;
+      color: white;
+      background: linear-gradient(135deg, #ff4abf, var(--violet) 58%, #4dbdff);
+      box-shadow: 0 16px 32px rgba(140,92,255,0.24);
+      font-size: 14px;
+      font-weight: 900;
+      margin-bottom: 58px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(52px, 7vw, 94px);
+      line-height: 1.02;
+      letter-spacing: -0.07em;
+      font-weight: 900;
+    }
+
+    .gradient-word {
+      background: linear-gradient(135deg, #ff53c6 0%, var(--violet) 52%, #4ebeff 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .headline-red {
+      color: #ff3b4d;
+      text-shadow: 0 8px 24px rgba(255,59,77,0.18);
+    }
+
+    .hero-sub {
+      margin: 64px auto 0;
+      max-width: 760px;
+      color: rgba(255,255,255,0.96);
+      text-shadow: 0 2px 16px rgba(0,0,0,0.22);
+      font-size: 20px;
+      line-height: 2.1;
+      font-weight: 700;
+    }
+
+    .hero-actions {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 68px;
+    }
+
+    .hero-layout {
+      position: relative;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+
+    .product-rail {
+      position: absolute;
+      right: -14px;
+      top: 30px;
+      width: 236px;
+      text-align: left;
+      z-index: 4;
+    }
+
+    .product-rail-card {
+      padding: 14px 0;
+      border-top: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .product-rail-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+      text-decoration: none;
+    }
+
+    .product-rail-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #ff49bf, var(--violet) 54%, #4ebeff);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      box-shadow: 0 12px 20px rgba(140,92,255,0.18);
+    }
+
+    .product-rail-title {
+      font-size: 18px;
+      font-weight: 900;
+      color: rgba(255,255,255,0.96);
+      letter-spacing: -0.03em;
+    }
+
+    .product-rail-link {
+      color: inherit;
+      text-decoration: none;
+      display: block;
+      border-radius: 18px;
+      padding: 10px 12px;
+      transition: transform .16s ease, background .16s ease, box-shadow .16s ease, border-color .16s ease;
+      border: 1px solid transparent;
+    }
+
+    .product-rail-link:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.18);
+      box-shadow: 0 14px 30px rgba(0,0,0,0.16);
+    }
+
+    .product-rail-desc {
+      color: rgba(255,255,255,0.72);
+      font-size: 14px;
+      line-height: 1.75;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 50px;
+      padding: 0 22px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 900;
+      transition: transform .16s ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+
+    .btn-primary {
+      color: white;
+      background: linear-gradient(135deg, #ff49bf, var(--violet) 58%, #4ebeff);
+      box-shadow: 0 16px 32px rgba(140,92,255,0.24);
+    }
+
+    .btn-secondary {
+      color: var(--ink);
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(18,18,23,0.08);
+    }
+
+    .hero-note {
+      margin-top: 46px;
+      color: #ff3b4d;
+      text-shadow: 0 8px 24px rgba(255,59,77,0.14);
+      font-size: 15px;
+      line-height: 1.8;
+      font-weight: 700;
+    }
+
+    .brain-scene {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .brain {
+      position: absolute;
+      left: 50%;
+      top: 54%;
+      width: min(980px, 92vw);
+      height: min(620px, 64vw);
+      transform: translate(-50%, -50%);
+      opacity: 0.95;
+    }
+
+    .hemisphere {
+      position: absolute;
+      top: 50%;
+      width: 41%;
+      height: 68%;
+      transform: translateY(-50%);
+      border-radius: 50% 46% 44% 50% / 54% 50% 56% 50%;
+      filter: blur(0.2px);
+    }
+
+    .hemisphere.left {
+      left: 10%;
+      background:
+        radial-gradient(circle at 36% 42%, rgba(255,255,255,0.82), transparent 10%),
+        radial-gradient(circle at 44% 58%, rgba(255,255,255,0.68), transparent 9%),
+        radial-gradient(circle at 65% 38%, rgba(255,255,255,0.56), transparent 8%),
+        linear-gradient(135deg, rgba(140,92,255,0.34), rgba(140,92,255,0.10));
+      box-shadow:
+        inset 0 0 0 1px rgba(140,92,255,0.12),
+        0 0 90px rgba(140,92,255,0.16);
+    }
+
+    .hemisphere.right {
+      right: 10%;
+      background:
+        radial-gradient(circle at 40% 40%, rgba(255,255,255,0.82), transparent 10%),
+        radial-gradient(circle at 48% 58%, rgba(255,255,255,0.68), transparent 9%),
+        radial-gradient(circle at 64% 34%, rgba(255,255,255,0.56), transparent 8%),
+        linear-gradient(135deg, rgba(210,255,56,0.24), rgba(210,255,56,0.08));
+      box-shadow:
+        inset 0 0 0 1px rgba(210,255,56,0.12),
+        0 0 90px rgba(210,255,56,0.14);
+    }
+
+    .brain-center {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 7%;
+      height: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.12));
+      opacity: 0.42;
+    }
+
+    .neuron,
+    .neuron::before,
+    .neuron::after {
+      position: absolute;
+      border-radius: 999px;
+      content: "";
+    }
+
+    .neuron {
+      height: 2px;
+      transform-origin: left center;
+    }
+
+    .neuron.left {
+      background: linear-gradient(90deg, rgba(140,92,255,0.08), rgba(140,92,255,0.94), rgba(140,92,255,0.08));
+      box-shadow: 0 0 14px rgba(140,92,255,0.28);
+      animation: pulseLeft 3.4s ease-in-out infinite;
+    }
+
+    .neuron.right {
+      background: linear-gradient(90deg, rgba(210,255,56,0.08), rgba(210,255,56,0.96), rgba(210,255,56,0.08));
+      box-shadow: 0 0 14px rgba(210,255,56,0.26);
+      animation: pulseRight 3.0s ease-in-out infinite;
+    }
+
+    .neuron::before,
+    .neuron::after {
+      width: 14px;
+      height: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .neuron.left::before,
+    .neuron.left::after {
+      background: radial-gradient(circle, #fff 0%, var(--violet-soft) 44%, rgba(140,92,255,0.10) 74%, transparent 76%);
+    }
+
+    .neuron.right::before,
+    .neuron.right::after {
+      background: radial-gradient(circle, #fff 0%, var(--acid) 44%, rgba(210,255,56,0.10) 74%, transparent 76%);
+    }
+
+    .neuron::before { left: -8px; }
+    .neuron::after { right: -8px; }
+
+    .neuron.l1 { left: 15%; top: 31%; width: 22%; transform: rotate(24deg); }
+    .neuron.l2 { left: 18%; top: 48%; width: 26%; transform: rotate(-18deg); }
+    .neuron.l3 { left: 16%; top: 65%; width: 22%; transform: rotate(18deg); }
+    .neuron.l4 { left: 28%; top: 25%; width: 14%; transform: rotate(-38deg); }
+    .neuron.r1 { right: 15%; top: 31%; width: 22%; transform: rotate(-24deg); }
+    .neuron.r2 { right: 17%; top: 48%; width: 26%; transform: rotate(18deg); }
+    .neuron.r3 { right: 15%; top: 66%; width: 22%; transform: rotate(-18deg); }
+    .neuron.r4 { right: 28%; top: 24%; width: 14%; transform: rotate(38deg); }
+
+    .planet,
+    .dust,
+    .shard {
+      position: absolute;
+      border-radius: 999px;
+    }
+
+    .planet {
+      width: 84px;
+      height: 84px;
+      top: 16%;
+      right: 20%;
+      background: radial-gradient(circle at 34% 34%, rgba(255,255,255,0.88), rgba(210,255,56,0.42), rgba(210,255,56,0.04));
+      box-shadow: 0 0 38px rgba(210,255,56,0.18);
+      opacity: 0.85;
+    }
+
+    .dust {
+      width: 10px;
+      height: 10px;
+      background: rgba(255,255,255,0.72);
+      box-shadow: 0 0 18px rgba(255,255,255,0.24);
+    }
+
+    .dust.d1 { left: 18%; top: 18%; }
+    .dust.d2 { left: 26%; top: 14%; width: 6px; height: 6px; }
+    .dust.d3 { right: 28%; top: 24%; width: 8px; height: 8px; }
+    .dust.d4 { right: 16%; top: 30%; width: 6px; height: 6px; }
+    .dust.d5 { left: 48%; top: 22%; width: 5px; height: 5px; }
+
+    .shard {
+      width: 2px;
+      background: rgba(255,255,255,0.18);
+      box-shadow: 0 0 14px rgba(255,255,255,0.10);
+    }
+
+    .shard.s1 { height: 180px; left: 50%; top: 18%; transform: rotate(16deg); }
+    .shard.s2 { height: 110px; left: 46%; top: 24%; transform: rotate(-28deg); }
+    .shard.s3 { height: 140px; left: 55%; top: 48%; transform: rotate(36deg); }
+
+    .section {
+      padding: 84px 0;
+      background: white;
+    }
+
+    .section.alt {
+      background: #fafbfe;
+    }
+
+    .section-head {
+      max-width: 760px;
+      margin-bottom: 28px;
+    }
+
+    .section-head h2 {
+      margin: 0 0 12px;
+      font-size: clamp(34px, 4vw, 52px);
+      letter-spacing: -0.06em;
+      line-height: 1.05;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.85;
+    }
+
+    .grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .paperdrop-layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 34px;
+      align-items: start;
+    }
+
+    .paperdrop-showcase {
+      min-height: 420px;
+      border-radius: 26px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,249,252,0.96));
+      border: 1px solid rgba(18,18,23,0.06);
+      box-shadow: 0 20px 50px rgba(18,18,23,0.08);
+      overflow: hidden;
+    }
+
+    .app-window-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(18,18,23,0.08);
+      background: rgba(255,255,255,0.88);
+    }
+
+    .app-window-body {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      min-height: 360px;
+    }
+
+    .app-side {
+      padding: 16px;
+      background: linear-gradient(180deg, rgba(140,92,255,0.08), rgba(255,255,255,0.2));
+      border-right: 1px solid rgba(18,18,23,0.06);
+    }
+
+    .mini-drop {
+      min-height: 180px;
+      border-radius: 18px;
+      border: 2px dashed rgba(140,92,255,0.26);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: #60657a;
+      font-size: 13px;
+      line-height: 1.6;
+      background: rgba(255,255,255,0.68);
+      padding: 10px;
+    }
+
+    .app-main {
+      padding: 16px;
+      background: linear-gradient(180deg, #f9fbff, #f5f7fc);
+    }
+
+    .mini-pills {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .mini-pill {
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(18,18,23,0.07);
+      color: #5c6477;
+      font-weight: 700;
+    }
+
+    .mini-pill.active {
+      color: white;
+      border-color: transparent;
+      background: linear-gradient(135deg, #ff49bf, var(--violet) 54%, #4ebeff);
+    }
+
+    .app-doc {
+      background: white;
+      border-radius: 18px;
+      padding: 20px;
+      min-height: 260px;
+      box-shadow: 0 12px 24px rgba(18,18,23,0.06);
+    }
+
+    .install-tip {
+      margin-top: 18px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(140,92,255,0.08), rgba(78,190,255,0.08));
+      border: 1px solid rgba(18,18,23,0.06);
+      color: #5e6576;
+      font-size: 14px;
+      line-height: 1.75;
+    }
+
+    .card {
+      padding: 8px 4px;
+    }
+
+    .card strong {
+      display: block;
+      font-size: 24px;
+      margin-bottom: 10px;
+      letter-spacing: -0.04em;
+    }
+
+    .card p,
+    .card li {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.85;
+    }
+
+    .card ul {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .name-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 24px;
+    }
+
+    .name-tag {
+      min-height: 92px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 14px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, rgba(140,92,255,0.08), rgba(210,255,56,0.06));
+      border: 1px solid rgba(18,18,23,0.06);
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+
+    .footer {
+      padding: 32px 0 42px;
+      background: white;
+      border-top: 1px solid rgba(18,18,23,0.06);
+      color: #8a91a4;
+      font-size: 13px;
+    }
+
+    @keyframes pulseLeft {
+      0%, 100% { opacity: 0.56; }
+      50% { opacity: 0.96; }
+    }
+
+    @keyframes pulseRight {
+      0%, 100% { opacity: 0.48; }
+      50% { opacity: 0.90; }
+    }
+
+    @media (max-width: 980px) {
+      .grid,
+      .name-grid,
+      .paperdrop-layout,
+      .app-window-body {
+        grid-template-columns: 1fr;
+      }
+
+      .hero { padding-bottom: 60px; }
+      .brain { width: 96vw; height: 74vw; top: 58%; }
+      h1 { font-size: 54px; }
+      .hero-sub { font-size: 17px; }
+      .product-rail {
+        position: static;
+        width: min(340px, 100%);
+        margin: 28px auto 0;
+      }
+      .hero-layout {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .nav { display: none; }
+      .hero-actions { flex-direction: column; align-items: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="hero-wrap">
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <div class="brand">
+          <div class="brand-mark neuron-mark"><span></span></div>
+          <span>逃逸宇宙</span>
+        </div>
+        <nav class="nav">
+          <a href="javascript:void(0)" onclick="document.getElementById('products').scrollIntoView({behavior:'smooth'})">产品</a>
+          <a href="javascript:void(0)" onclick="document.getElementById('system').scrollIntoView({behavior:'smooth'})">系统</a>
+          <a href="javascript:void(0)" onclick="document.getElementById('names').scrollIntoView({behavior:'smooth'})">命名</a>
+          <a href="mailto:hello@taoyiverse.site">联系</a>
+        </nav>
+      </div>
+    </header>
+
+    <section class="hero container">
+      <div class="brain-scene">
+        <div class="brain">
+          <div class="hemisphere left"></div>
+          <div class="hemisphere right"></div>
+          <div class="brain-center"></div>
+
+          <div class="neuron left l1"></div>
+          <div class="neuron left l2"></div>
+          <div class="neuron left l3"></div>
+          <div class="neuron left l4"></div>
+          <div class="neuron left" style="left:12%; top:39%; width:18%; transform:rotate(8deg);"></div>
+          <div class="neuron left" style="left:26%; top:58%; width:14%; transform:rotate(-42deg);"></div>
+          <div class="neuron left" style="left:24%; top:74%; width:16%; transform:rotate(26deg);"></div>
+          <div class="neuron right r1"></div>
+          <div class="neuron right r2"></div>
+          <div class="neuron right r3"></div>
+          <div class="neuron right r4"></div>
+          <div class="neuron right" style="right:11%; top:40%; width:18%; transform:rotate(-10deg);"></div>
+          <div class="neuron right" style="right:25%; top:56%; width:16%; transform:rotate(38deg);"></div>
+          <div class="neuron right" style="right:23%; top:74%; width:18%; transform:rotate(-26deg);"></div>
+
+          <div class="planet"></div>
+          <div class="dust d1"></div>
+          <div class="dust d2"></div>
+          <div class="dust d3"></div>
+          <div class="dust d4"></div>
+          <div class="dust d5"></div>
+          <div class="dust" style="right:10%; top:18%; width:4px; height:4px;"></div>
+          <div class="dust" style="right:22%; top:12%; width:5px; height:5px;"></div>
+          <div class="dust" style="right:8%; top:42%; width:4px; height:4px;"></div>
+          <div class="dust" style="right:18%; top:58%; width:3px; height:3px;"></div>
+          <div class="dust" style="right:30%; top:70%; width:5px; height:5px;"></div>
+
+          <div class="shard s1"></div>
+          <div class="shard s2"></div>
+          <div class="shard s3"></div>
+          <div class="shard" style="height:120px; left:42%; top:16%; transform:rotate(26deg);"></div>
+          <div class="shard" style="height:160px; left:58%; top:30%; transform:rotate(-34deg);"></div>
+          <div class="shard" style="height:90px; left:61%; top:62%; transform:rotate(22deg);"></div>
+        </div>
+      </div>
+
+      <div class="hero-layout">
+        <div class="hero-content">
+          <div class="notice">个人想法、产品与实验的集合站</div>
+          <h1>
+            <span class="headline-red">总有一天</span><br />
+            我们能<span class="gradient-word">逃逸宇宙</span>
+          </h1>
+          <p class="hero-sub">打破旧思维 把脑内宇宙做成产品 免费产品 按需获取</p>
+          <div class="hero-note">左紫右绿 · 神经脉冲 · 宇宙裂面</div>
+        </div>
+
+        <aside class="product-rail">
+          <div class="product-rail-card">
+            <a class="product-rail-link" href="#paperdrop">
+              <div class="product-rail-head">
+                <div class="product-rail-icon">📄</div>
+                <div class="product-rail-title">PaperDrop</div>
+              </div>
+              <div class="product-rail-desc">
+                强悍的文本转换，杜绝乱换行、空格的 PDF 文字识别。
+              </div>
+            </a>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </div>
+
+  <section class="section" id="products">
+    <div class="container">
+      <div class="section-head">
+        <h2>产品</h2>
+        <p>这里不是单一产品官网，而是一个母站。PaperDrop 只是第一个落地的碎片。</p>
+      </div>
+      <div class="paperdrop-layout">
+        <div>
+          <div class="card" id="paperdrop">
+            <strong>PaperDrop</strong>
+            <p>强悍的文本转换工具，把 PDF、图片和文档里的内容整理成真正能复制、能编辑、能继续加工的结果。</p>
+            <p style="margin-top:10px;">它重点解决 PDF 文字识别后常见的乱换行、乱空格、段落碎裂问题，让你拿到的不是一坨文字，而是更顺手的内容。</p>
+            <p style="margin-top:10px;">你可以在原稿视图里确认页面结构，在优化文本视图里直接编辑文字，再导出 Word、Markdown、TXT 或 HTML。</p>
+            <div style="margin-top:18px; display:flex; gap:12px; flex-wrap:wrap;">
+              <a class="btn btn-primary" href="#">下载 macOS 版</a>
+              <a class="btn btn-secondary" href="#">下载 Windows 版</a>
+            </div>
+            <div class="install-tip">
+              macOS 首次打开如果被拦，右键应用选择“打开”或在“系统设置 → 隐私与安全性”里允许。Windows 如遇风险提示，点击“更多信息”后选择“仍要运行”。
+            </div>
+          </div>
+        </div>
+        <div class="paperdrop-showcase">
+          <div class="app-window-top">
+            <div style="width:12px;height:12px;border-radius:999px;background:#ff5f57;"></div>
+            <div style="width:12px;height:12px;border-radius:999px;background:#febb2e;"></div>
+            <div style="width:12px;height:12px;border-radius:999px;background:#28c840;"></div>
+          </div>
+          <div class="app-window-body">
+            <div class="app-side">
+              <div class="mini-drop">拖入 PDF / 图片<br />开始处理</div>
+            </div>
+            <div class="app-main">
+              <div class="mini-pills">
+                <div class="mini-pill">原稿视图</div>
+                <div class="mini-pill active">优化文本视图</div>
+              </div>
+              <div class="app-doc">
+                <div style="font-size:22px;font-weight:800;letter-spacing:-0.03em;margin-bottom:14px;">强悍的文本转换</div>
+                <div style="font-size:15px;line-height:1.9;color:#4d5568;">先保留原稿页面，再把文字整理成更适合复制、编辑、导出和继续加工的结果。你可以在优化文本视图里直接修字、修段落、预览导出效果。</div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;">
+                  <span style="padding:7px 10px; border-radius:999px; background:#f4f6fb; color:#667085; font-size:12px; font-weight:700;">导出 Word</span>
+                  <span style="padding:7px 10px; border-radius:999px; background:#f4f6fb; color:#667085; font-size:12px; font-weight:700;">导出 Markdown</span>
+                  <span style="padding:7px 10px; border-radius:999px; background:#f4f6fb; color:#667085; font-size:12px; font-weight:700;">支持编辑</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="grid" style="margin-top:42px;">
+        <div class="card">
+          <strong>网页实验</strong>
+          <p>未来会放更多内容处理、整理、转换和表达类的小工具。</p>
+        </div>
+        <div class="card">
+          <strong>API / 数据能力</strong>
+          <p>后续可以长出 OCR、文档结构化、规则模板和数据库入口。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section alt" id="system">
+    <div class="container">
+      <div class="section-head">
+        <h2>系统</h2>
+        <p>视觉上不是普通撞色，而是脑神经元的跳动和宇宙裂缝的破碎感。左边偏意识，右边偏异变。</p>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <strong>左边</strong>
+          <ul>
+            <li>紫罗兰</li>
+            <li>意识与神经元</li>
+            <li>思维、脉冲、内在结构</li>
+          </ul>
+        </div>
+        <div class="card">
+          <strong>右边</strong>
+          <ul>
+            <li>酸性绿</li>
+            <li>能量与入侵</li>
+            <li>异变、生长、突变感</li>
+          </ul>
+        </div>
+        <div class="card">
+          <strong>中间</strong>
+          <ul>
+            <li>宇宙裂面</li>
+            <li>空间撕开</li>
+            <li>想法从裂缝里长出产品</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="names">
+    <div class="container">
+      <div class="section-head">
+        <h2>命名</h2>
+        <p>“逃逸宇宙”先作为起点。下面这些也都可以继续比。</p>
+      </div>
+      <div class="name-grid">
+        <div class="name-tag">逃逸宇宙</div>
+        <div class="name-tag">裂变宇宙</div>
+        <div class="name-tag">离轨宇宙</div>
+        <div class="name-tag">神经裂变</div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">逃逸宇宙 · 个人产品与想法的中文母站。</div>
+  </footer>
+</body>
+</html>
