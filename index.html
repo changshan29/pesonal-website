@@ -256,6 +256,15 @@
       z-index: 4;
     }
 
+    .product-rail-left {
+      position: absolute;
+      left: -14px;
+      top: 30px;
+      width: 236px;
+      text-align: left;
+      z-index: 4;
+    }
+
     .product-rail-card {
       padding: 14px 0;
       border-top: 1px solid rgba(255,255,255,0.12);
@@ -715,7 +724,8 @@
       .brain { width: 96vw; height: 74vw; top: 58%; }
       h1 { font-size: 54px; }
       .hero-sub { font-size: 17px; }
-      .product-rail {
+      .product-rail,
+      .product-rail-left {
         position: static;
         width: min(340px, 100%);
         margin: 28px auto 0;
@@ -793,6 +803,20 @@
       </div>
 
       <div class="hero-layout">
+        <aside class="product-rail-left">
+          <div class="product-rail-card">
+            <a class="product-rail-link" href="stockradar.html">
+              <div class="product-rail-head">
+                <div class="product-rail-icon">📡</div>
+                <div class="product-rail-title">StockRadar</div>
+              </div>
+              <div class="product-rail-desc">
+                实时异动雷达，火箭发射、高台跳水、涨跌停一网打尽。
+              </div>
+            </a>
+          </div>
+        </aside>
+
         <div class="hero-content">
           <div class="notice">个人想法、产品与实验的集合站</div>
           <h1>
