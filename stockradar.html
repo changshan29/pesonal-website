@@ -211,8 +211,8 @@
       display: none; /* 隐藏每只股的小K线 */
     }
 
-    /* ── 右侧K线观察框 ── */
-    .kline-viewer {
+    /* ── 右侧面板（K线+情绪） ── */
+    .right-panel {
       position: fixed;
       top: 42px; right: 0; bottom: 32px;
       width: 55%;
@@ -220,6 +220,19 @@
       border-left: 1px solid var(--border);
       display: flex; flex-direction: column;
       z-index: 10;
+      overflow-y: auto;
+    }
+    .right-panel::-webkit-scrollbar { width: 3px; }
+    .right-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+    /* K线观察框（右侧上半） */
+    .kline-viewer {
+      width: 100%;
+      min-height: 320px;
+      height: 45vh;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      flex-shrink: 0;
     }
     .kline-viewer-header {
       padding: 6px 12px;
@@ -262,6 +275,14 @@
       display: flex; align-items: center; justify-content: center;
       color: var(--muted); font-size: 13px;
     }
+
+    /* 右侧情绪区（K线下方） */
+    .right-sentiment {
+      padding: 6px 8px;
+      display: flex; flex-direction: column; gap: 6px;
+      border-top: 1px solid var(--border);
+    }
+
     /* 左侧列表缩窄 */
     .list {
       width: 45% !important;
@@ -449,10 +470,6 @@
         <span class="logo">📡</span>
         <span class="title">异动雷达</span>
         <span class="market-status closed" id="marketStatus">未连接</span>
-        <div class="chart-mode-toggle">
-          <button class="chart-mode-btn active" id="modeKline">K线</button>
-          <button class="chart-mode-btn" id="modeSentiment">情绪</button>
-        </div>
         <div class="chart-mode-toggle" style="margin-left:4px;">
           <button class="chart-mode-btn active" id="modeStock">选股</button>
         </div>
@@ -474,7 +491,8 @@
       </div>
     </div>
     <div class="hot-panel" id="hotPanel"></div>
-    <!-- K线观察框 -->
+    <!-- 右侧面板：K线+情绪 -->
+    <div class="right-panel" id="rightPanel">
     <div class="kline-viewer" id="klineViewer">
       <div class="kline-viewer-header">
         <div>
@@ -493,7 +511,11 @@
         <canvas id="kvCanvas" style="display:none;"></canvas>
       </div>
     </div>
-    <div class="sentiment-panel" id="sentimentPanel"></div>
+    <div class="right-sentiment" id="rightSentiment">
+      <div style="color:var(--muted);font-size:11px;text-align:center;padding:8px;">📊 情绪数据加载中…</div>
+    </div>
+    </div><!-- /right-panel -->
+    <div class="sentiment-panel" id="sentimentPanel" style="display:none;"></div>
     <div class="settings-panel" id="settingsPanel"></div>
     <div class="footer">
       <div class="footer-left">
@@ -1004,13 +1026,16 @@ function connectWS() {
   ws.onopen = () => {
     wsConnected=true; refreshStatus.textContent='已连接'; refreshDot.style.background='#22c55e';
     ws.send(JSON.stringify({ action: 'update_schemes', schemes }));
+    // 自动请求情绪数据
+    ws.send(JSON.stringify({ action: 'get_sentiment' }));
     renderList();
   };
   ws.onmessage = e => { try { const d = JSON.parse(e.data);
     if (d.type==='init') { alerts=d.alerts||[]; for(const a of alerts){if(a.klines&&a.klines.length)klinesMap[a.id]=a.klines;} if(d.market)updateMarketLabel(d.market); renderList(); }
     if (d.type==='alerts') { const items=d.items||[],ids=items.map(i=>i.id); for(const a of items){if(a.klines&&a.klines.length)klinesMap[a.id]=a.klines;} alerts=[...items,...alerts].slice(0,200); renderList(ids); alertList.scrollTop=0; }
     if (d.type==='market') updateMarketLabel(d.state);
-    if (d.type==='sentiment') { sentimentData = d.data; renderSentimentFromData(d.data); }
+    if (d.type==='sentiment') { sentimentData = d.data; renderRightSentiment(d.data); }
+    if (d.type==='screen_results') { alerts = d.alerts || []; renderList(); }
     if (d.type==='klines') { drawKlineViewer(d.data); }
     if (d.type==='sector_stocks') {
       // 板块股票数据返回，填充对应的展开区域
@@ -1249,7 +1274,83 @@ function renderSettings() {
    情绪面板
 ══════════════════════════════════════════════════════ */
 
-/* 渲染骨架（加载中状态） */
+/* 渲染右侧下半情绪区 */
+function renderRightSentiment(data) {
+  const el = document.getElementById('rightSentiment');
+  if (!el || !data) return;
+
+  // 指数
+  const indices = data.indices || [];
+  let idxHtml = '';
+  for (const item of indices) {
+    const cls = item.change >= 0 ? 'up' : 'down';
+    const sign = item.change >= 0 ? '+' : '';
+    idxHtml += `<div style="display:flex;align-items:baseline;gap:6px;">
+      <span style="font-size:11px;color:var(--muted);">${esc(item.name)}</span>
+      <span style="font-size:14px;font-weight:800;">${item.price.toFixed(2)}</span>
+      <span style="font-size:11px;font-weight:700;" class="sh-change ${cls}">${sign}${item.change.toFixed(2)}%</span>
+    </div>`;
+  }
+
+  // 市场宽度
+  const b = data.breadth || {};
+  let breadthHtml = '';
+  if (b.total) {
+    const up = b.up||0, down = b.down||0, flat = b.flat||0;
+    const limitUp = b.limit_up||0, limitDown = b.limit_down||0;
+    const total = b.total||1;
+    const upPct = (up/total*100).toFixed(0);
+    const downPct = (down/total*100).toFixed(0);
+    breadthHtml = `
+      <div class="breadth-row">
+        <span class="breadth-num up">↑${up}</span>
+        <div class="breadth-bar">
+          <div class="breadth-fill-up" style="width:${upPct}%"></div>
+          <div class="breadth-fill-down" style="width:${downPct}%"></div>
+        </div>
+        <span class="breadth-num down">↓${down}</span>
+      </div>
+      <div class="limit-row">
+        <span class="limit-badge up">🔴 涨停 ${limitUp}</span>
+        <span class="limit-badge down">🟢 跌停 ${limitDown}</span>
+        <span style="font-size:10px;color:var(--muted);margin-left:auto;">平盘 ${flat}</span>
+      </div>`;
+  }
+
+  // 板块排名
+  const sectors = (data.sectors || []).slice(0, 7);
+  let sectorHtml = '';
+  if (sectors.length) {
+    sectorHtml = sectors.map((s, i) => {
+      const isLimit = s.isLimitCount;
+      const cls = isLimit ? 'up' : (s.change >= 0 ? 'up' : 'down');
+      const changeText = isLimit ? `涨停${s.change}只` : `${s.change >= 0 ? '+' : ''}${typeof s.change === 'number' ? s.change.toFixed ? s.change.toFixed(2) : s.change : s.change}%`;
+      return `<div class="sector-row">
+        <span class="sector-rank">${i+1}</span>
+        <span class="sector-name">${esc(s.name)}</span>
+        ${s.leader ? `<span style="color:var(--muted);font-size:10px;">${esc(s.leader)}</span>` : ''}
+        <span class="sector-change ${cls}" style="margin-left:auto;">${changeText}</span>
+      </div>`;
+    }).join('');
+  }
+
+  el.innerHTML = `
+    <div class="sent-section">
+      <div class="sent-section-title">📈 沪深指数</div>
+      ${idxHtml || '<div style="color:var(--muted);font-size:10px;">暂无数据</div>'}
+    </div>
+    ${breadthHtml ? `<div class="sent-section">
+      <div class="sent-section-title">🌡️ 市场宽度</div>
+      ${breadthHtml}
+    </div>` : ''}
+    ${sectorHtml ? `<div class="sent-section">
+      <div class="sent-section-title">🔥 题材涨停排名</div>
+      ${sectorHtml}
+    </div>` : ''}
+  `;
+}
+
+/* 渲染骨架（加载中状态） - 旧情绪面板 */
 function renderSentimentPanel() {
   sentimentPanel.innerHTML = `
     <div class="sent-section">
