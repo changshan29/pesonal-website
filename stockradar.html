@@ -22,15 +22,14 @@
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", sans-serif;
       background: var(--bg); color: var(--text);
       height: 100vh; overflow: hidden;
-      border-radius: 16px; border: 1px solid var(--border);
       user-select: none;
     }
 
     .header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 36px 12px 6px 12px; -webkit-app-region: drag;
+      padding: 12px 12px 6px 12px;
       position: relative; z-index: 20;
-      /* padding-top:36px 为 macOS 红绿灯按钮留出空间（红绿灯高约28px） */
+      width: 45%; /* 只占左侧宽度，不覆盖右侧面板 */
     }
     .header-left { display: flex; align-items: center; gap: 8px; }
     .logo { font-size: 16px; }
@@ -478,9 +477,7 @@
       <div class="header-actions">
         <button class="header-btn" id="settingsBtn" title="设置">⚙️</button>
         <button class="header-btn" id="refreshBtn" title="刷新">🔄</button>
-        <button class="header-btn" id="pinBtn" title="置顶">📌</button>
-        <button class="header-btn" id="minimizeBtn" title="最小化">—</button>
-        <button class="header-btn" id="closeBtn" title="关闭">×</button>
+        <a href="index.html" class="header-btn" title="返回首页" style="text-decoration:none;font-size:14px;">🏠</a>
       </div>
     </div>
     <div class="scheme-bar" id="schemeBar"></div>
