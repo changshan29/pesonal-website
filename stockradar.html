@@ -208,10 +208,68 @@
     .concept-tag.hot3 { background: rgba(34,197,94,0.2); color: #86efac; }
 
     .alert-chart {
-      width: 72px; min-width: 72px; height: 38px;
-      border-radius: 5px; overflow: hidden;
+      display: none; /* 隐藏每只股的小K线 */
     }
-    .alert-chart canvas { width: 100%; height: 100%; display: block; }
+
+    /* ── 右侧K线观察框 ── */
+    .kline-viewer {
+      position: fixed;
+      top: 42px; right: 0; bottom: 32px;
+      width: 55%;
+      background: var(--bg);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      z-index: 10;
+    }
+    .kline-viewer-header {
+      padding: 6px 12px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .kline-viewer-header .kv-stock-name {
+      font-weight: 700; font-size: 14px; color: var(--text);
+    }
+    .kline-viewer-header .kv-stock-code {
+      color: var(--muted); font-size: 11px; margin-left: 6px;
+    }
+    .kline-viewer-header .kv-stock-change {
+      font-size: 12px; font-weight: 600; margin-left: 8px;
+    }
+    .kline-viewer-header .kv-stock-change.up { color: var(--red); }
+    .kline-viewer-header .kv-stock-change.down { color: var(--green); }
+    .kline-viewer-controls {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .kline-viewer-controls button {
+      background: rgba(255,255,255,0.08); border: 1px solid var(--border);
+      color: var(--text); border-radius: 4px; padding: 2px 8px; cursor: pointer;
+      font-size: 12px;
+    }
+    .kline-viewer-controls button:hover { background: rgba(255,255,255,0.15); }
+    .kline-viewer-controls .kv-days {
+      font-size: 11px; color: var(--muted); min-width: 40px; text-align: center;
+    }
+    .kline-viewer-body {
+      flex: 1; position: relative; overflow: hidden;
+    }
+    .kline-viewer-body canvas {
+      width: 100%; height: 100%; display: block;
+    }
+    .kline-viewer-empty {
+      display: flex; align-items: center; justify-content: center;
+      height: 100%; color: var(--muted); font-size: 13px;
+    }
+    /* 左侧列表缩窄 */
+    .list {
+      width: 45% !important;
+    }
+    .hot-panel { width: 45% !important; }
+    /* alert-card 点击高亮 */
+    .alert-card.kv-selected {
+      background: rgba(99,102,241,0.15) !important;
+      border-left: 2px solid var(--accent);
+    }
 
     .footer {
       padding: 5px 10px 8px; border-top: 1px solid var(--border);
@@ -415,6 +473,25 @@
       </div>
     </div>
     <div class="hot-panel" id="hotPanel"></div>
+    <!-- K线观察框 -->
+    <div class="kline-viewer" id="klineViewer">
+      <div class="kline-viewer-header">
+        <div>
+          <span class="kv-stock-name" id="kvStockName">点击左侧股票查看K线</span>
+          <span class="kv-stock-code" id="kvStockCode"></span>
+          <span class="kv-stock-change" id="kvStockChange"></span>
+        </div>
+        <div class="kline-viewer-controls">
+          <button id="kvZoomOut" title="缩小（减少天数）↑">−</button>
+          <span class="kv-days" id="kvDaysLabel">60日</span>
+          <button id="kvZoomIn" title="放大（增加天数）↓">+</button>
+        </div>
+      </div>
+      <div class="kline-viewer-body" id="kvBody">
+        <div class="kline-viewer-empty" id="kvEmpty">📊 点击左侧异动股票查看日K线</div>
+        <canvas id="kvCanvas" style="display:none;"></canvas>
+      </div>
+    </div>
     <div class="sentiment-panel" id="sentimentPanel"></div>
     <div class="settings-panel" id="settingsPanel"></div>
     <div class="footer">
@@ -606,6 +683,7 @@ modeSentiment?.addEventListener('click', () => {
   modeSentiment.classList.toggle('active', sentimentOpen);
   modeKline.classList.toggle('active', !sentimentOpen);
   sentimentPanel.classList.toggle('active', sentimentOpen);
+  document.getElementById('klineViewer').style.display = sentimentOpen ? 'none' : '';
   // 情绪面板打开时隐藏方案栏/列表；关闭时恢复
   alertList.style.display = sentimentOpen ? 'none' : '';
   hotPanel.style.display  = sentimentOpen ? 'none' : '';
@@ -680,6 +758,282 @@ minimizeBtn?.addEventListener('click', () => window.radarAPI?.minimize?.());
 closeBtn?.addEventListener('click', () => window.radarAPI?.close?.());
 opacitySlider?.addEventListener('input', e => { const v=Number(e.target.value)/100; document.body.style.opacity=v; window.radarAPI?.setOpacity?.(v); });
 
+/* ── K线观察框 ── */
+let kvCurrentCode = '';
+let kvCurrentName = '';
+let kvDays = 60;
+const KV_MIN_DAYS = 10;
+const KV_MAX_DAYS = 150;
+const KV_STEP = 10;
+
+const kvCanvas = document.getElementById('kvCanvas');
+const kvCtx = kvCanvas ? kvCanvas.getContext('2d') : null;
+const kvEmpty = document.getElementById('kvEmpty');
+const kvStockName = document.getElementById('kvStockName');
+const kvStockCode = document.getElementById('kvStockCode');
+const kvStockChange = document.getElementById('kvStockChange');
+const kvDaysLabel = document.getElementById('kvDaysLabel');
+const kvBody = document.getElementById('kvBody');
+
+// 从东方财富获取日K线数据
+async function fetchDailyKlines(code, days) {
+  try {
+    // 判断市场：6开头=上海(1.)，其他=深圳(0.)
+    const market = code.startsWith('6') || code.startsWith('9') ? '1' : '0';
+    const secid = market + '.' + code;
+    const url = 'https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=' + secid +
+      '&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57&klt=101&fqt=1&lmt=' + days +
+      '&end=20500101&_=' + Date.now();
+
+    // 通过后端代理请求（避免CORS）
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'get_klines', code: code, days: days }));
+      return null; // 数据会通过 WebSocket 返回
+    }
+    return null;
+  } catch(e) {
+    console.error('[K线] 获取失败:', e);
+    return null;
+  }
+}
+
+function selectStock(code, name, change) {
+  kvCurrentCode = code;
+  kvCurrentName = name;
+  kvStockName.textContent = name;
+  kvStockCode.textContent = code;
+  const cc = parseFloat(change) >= 0 ? 'up' : 'down';
+  const sign = parseFloat(change) >= 0 ? '+' : '';
+  kvStockChange.className = 'kv-stock-change ' + cc;
+  kvStockChange.textContent = sign + change + '%';
+
+  // 高亮选中的卡片
+  document.querySelectorAll('.alert-card').forEach(c => c.classList.remove('kv-selected'));
+  const cards = document.querySelectorAll('.alert-card');
+  cards.forEach(c => {
+    const info = c.querySelector('.stock-code');
+    if (info && info.textContent === code) c.classList.add('kv-selected');
+  });
+
+  // 请求K线数据
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ action: 'get_klines', code: code, days: kvDays }));
+  }
+}
+
+function drawKlineViewer(klines) {
+  if (!kvCanvas || !kvCtx || !klines || !klines.length) return;
+  kvEmpty.style.display = 'none';
+  kvCanvas.style.display = 'block';
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = kvBody.getBoundingClientRect();
+  const W = rect.width;
+  const H = rect.height;
+  kvCanvas.width = W * dpr;
+  kvCanvas.height = H * dpr;
+  kvCanvas.style.width = W + 'px';
+  kvCanvas.style.height = H + 'px';
+  kvCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const ctx = kvCtx;
+  ctx.clearRect(0, 0, W, H);
+
+  const data = klines.slice(-kvDays);
+  if (!data.length) return;
+
+  const padTop = 30, padBot = 25, padLeft = 50, padRight = 15;
+  const chartW = W - padLeft - padRight;
+  const chartH = H - padTop - padBot;
+
+  // 找最高最低
+  let hi = -Infinity, lo = Infinity;
+  for (const k of data) {
+    if (k.high > hi) hi = k.high;
+    if (k.low < lo) lo = k.low;
+  }
+  const range = hi - lo || 1;
+  const margin = range * 0.05;
+  hi += margin; lo -= margin;
+  const totalRange = hi - lo;
+
+  const barW = chartW / data.length;
+  const bodyW = Math.max(1, barW * 0.6);
+
+  // 背景网格
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = padTop + (chartH / 4) * i;
+    ctx.beginPath(); ctx.moveTo(padLeft, y); ctx.lineTo(W - padRight, y); ctx.stroke();
+    // 价格标签
+    const price = hi - (totalRange / 4) * i;
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(price.toFixed(2), padLeft - 4, y + 3);
+  }
+
+  // 计算均线
+  function calcMA(arr, period) {
+    const result = [];
+    for (let i = 0; i < arr.length; i++) {
+      if (i < period - 1) { result.push(null); continue; }
+      let sum = 0;
+      for (let j = i - period + 1; j <= i; j++) sum += arr[j];
+      result.push(sum / period);
+    }
+    return result;
+  }
+  const closes = data.map(k => k.close);
+  const ma5 = calcMA(closes, 5);
+  const ma10 = calcMA(closes, 10);
+  const ma20 = calcMA(closes, 20);
+  const ma60 = data.length >= 60 ? calcMA(closes, 60) : null;
+
+  // 画均线
+  function drawMA(values, color) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < values.length; i++) {
+      if (values[i] === null) continue;
+      const x = padLeft + (i + 0.5) * barW;
+      const y = padTop + (hi - values[i]) / totalRange * chartH;
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  drawMA(ma5, '#f59e0b');
+  drawMA(ma10, '#3b82f6');
+  drawMA(ma20, '#a855f7');
+  if (ma60) drawMA(ma60, '#22c55e');
+
+  // 画K线
+  for (let i = 0; i < data.length; i++) {
+    const k = data[i];
+    const x = padLeft + (i + 0.5) * barW;
+    const isUp = k.close >= k.open;
+    const color = isUp ? '#ef4444' : '#22c55e';
+
+    // 影线
+    const yHigh = padTop + (hi - k.high) / totalRange * chartH;
+    const yLow = padTop + (hi - k.low) / totalRange * chartH;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, yHigh); ctx.lineTo(x, yLow); ctx.stroke();
+
+    // 实体
+    const yOpen = padTop + (hi - k.open) / totalRange * chartH;
+    const yClose = padTop + (hi - k.close) / totalRange * chartH;
+    const bodyTop = Math.min(yOpen, yClose);
+    const bodyHeight = Math.max(1, Math.abs(yOpen - yClose));
+    if (isUp) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x - bodyW/2, bodyTop, bodyW, bodyHeight);
+    } else {
+      ctx.fillStyle = color;
+      ctx.fillRect(x - bodyW/2, bodyTop, bodyW, bodyHeight);
+    }
+  }
+
+  // 日期标签
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'center';
+  const step = Math.max(1, Math.floor(data.length / 6));
+  for (let i = 0; i < data.length; i += step) {
+    if (data[i].date) {
+      const x = padLeft + (i + 0.5) * barW;
+      ctx.fillText(data[i].date, x, H - 8);
+    }
+  }
+
+  // 均线图例
+  ctx.font = '10px sans-serif';
+  const legends = [
+    { label: 'MA5', color: '#f59e0b' },
+    { label: 'MA10', color: '#3b82f6' },
+    { label: 'MA20', color: '#a855f7' },
+  ];
+  if (ma60) legends.push({ label: 'MA60', color: '#22c55e' });
+  let lx = padLeft + 5;
+  for (const lg of legends) {
+    ctx.fillStyle = lg.color;
+    ctx.fillRect(lx, 8, 12, 3);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.textAlign = 'left';
+    ctx.fillText(lg.label, lx + 15, 13);
+    lx += 55;
+  }
+
+  // 标题
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(kvCurrentName + ' ' + kvCurrentCode + ' ' + kvDays + '日K线', W - padRight, 14);
+}
+
+// 放大缩小
+document.getElementById('kvZoomOut')?.addEventListener('click', () => {
+  kvDays = Math.max(KV_MIN_DAYS, kvDays - KV_STEP);
+  kvDaysLabel.textContent = kvDays + '日';
+  if (kvCurrentCode && ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ action: 'get_klines', code: kvCurrentCode, days: kvDays }));
+  }
+});
+document.getElementById('kvZoomIn')?.addEventListener('click', () => {
+  kvDays = Math.min(KV_MAX_DAYS, kvDays + KV_STEP);
+  kvDaysLabel.textContent = kvDays + '日';
+  if (kvCurrentCode && ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ action: 'get_klines', code: kvCurrentCode, days: kvDays }));
+  }
+});
+
+// 键盘上下键
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    kvDays = Math.max(KV_MIN_DAYS, kvDays - KV_STEP);
+    kvDaysLabel.textContent = kvDays + '日';
+    if (kvCurrentCode && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'get_klines', code: kvCurrentCode, days: kvDays }));
+    }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    kvDays = Math.min(KV_MAX_DAYS, kvDays + KV_STEP);
+    kvDaysLabel.textContent = kvDays + '日';
+    if (kvCurrentCode && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'get_klines', code: kvCurrentCode, days: kvDays }));
+    }
+  }
+});
+
+// 点击 alert-card 事件委托
+alertList.addEventListener('click', (e) => {
+  const card = e.target.closest('.alert-card');
+  if (!card) return;
+  const id = card.dataset.id;
+  // 从 alerts 中找到对应的数据
+  const allAlerts = currentMode === 'review' ? reviewAlerts : alerts;
+  const alert = allAlerts.find(a => a.id === id);
+  if (alert) {
+    selectStock(alert.code, alert.name, alert.change);
+  }
+});
+
+// 窗口大小变化时重绘
+window.addEventListener('resize', () => {
+  if (kvCurrentCode && kvCanvas.style.display !== 'none') {
+    // 重新请求数据以触发重绘
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'get_klines', code: kvCurrentCode, days: kvDays }));
+    }
+  }
+});
+
 /* ── WebSocket ── */
 function connectWS() {
   refreshStatus.textContent='连接中…'; refreshDot.style.background='#f59e0b';
@@ -705,6 +1059,7 @@ function connectWS() {
     if (d.type==='review_update') { const updates=d.updates||{}; for(const a of reviewAlerts){if(updates[a.code]){a.price=updates[a.code].price;a.change=updates[a.code].change;a.speed=updates[a.code].speed||0;a.amount=updates[a.code].amount||a.amount;}} if(currentMode==='review') renderList(); }
     if (d.type==='market') updateMarketLabel(d.state);
     if (d.type==='sentiment') { sentimentData = d.data; renderSentimentFromData(d.data); }
+    if (d.type==='klines') { drawKlineViewer(d.data); }
     if (d.type==='sector_stocks') {
       // 板块股票数据返回，填充对应的展开区域
       const sectorName = d.sector_name;
