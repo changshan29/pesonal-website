@@ -454,8 +454,7 @@
           <button class="chart-mode-btn" id="modeSentiment">情绪</button>
         </div>
         <div class="chart-mode-toggle" style="margin-left:4px;">
-          <button class="chart-mode-btn active" id="modeRealtime">盘中</button>
-          <button class="chart-mode-btn" id="modeReview">复盘</button>
+          <button class="chart-mode-btn active" id="modeStock">选股</button>
         </div>
       </div>
       <div class="header-actions">
@@ -572,13 +571,12 @@ const CONDITION_DEFS = [
 /* ── 状态 ── */
 let schemes = JSON.parse(localStorage.getItem('stock-radar-schemes')) || JSON.parse(JSON.stringify(DEFAULT_SCHEMES));
 let alerts = [];
-let reviewAlerts = [];  // 复盘结果
 let isPinned = true;
 let ws = null;
 let wsConnected = false;
 let chartMode = 'kline';
 let settingsOpen = false;
-let currentMode = 'realtime'; // 'realtime' | 'review'
+let currentMode = 'stock'; // unified mode
 const klinesMap = {};
 
 /* ── DOM ── */
@@ -596,8 +594,7 @@ const closeBtn      = document.getElementById('closeBtn');
 const opacitySlider = document.getElementById('opacitySlider');
 const modeKline      = document.getElementById('modeKline');
 const modeSentiment  = document.getElementById('modeSentiment');
-const modeRealtime   = document.getElementById('modeRealtime');
-const modeReview     = document.getElementById('modeReview');
+const modeStock      = document.getElementById('modeStock');
 const sentimentPanel = document.getElementById('sentimentPanel');
 const hotPanel       = document.getElementById('hotPanel');
 
@@ -675,9 +672,6 @@ modeKline?.addEventListener('click', () => {
   alertList.style.display = '';
   hotPanel.style.display = '';
   schemeBar.style.display = '';   // ← 恢复方案标签栏
-  // 恢复盘中/复盘按钮
-  if (modeRealtime) { modeRealtime.disabled = false; modeRealtime.style.opacity = ''; }
-  if (modeReview)   { modeReview.disabled   = false; modeReview.style.opacity   = ''; }
   drawAllMiniCharts();
 });
 modeSentiment?.addEventListener('click', () => {
@@ -698,32 +692,6 @@ modeSentiment?.addEventListener('click', () => {
     fetchSentimentData();
   }
 });
-modeRealtime?.addEventListener('click', () => {
-  // 切换到盘中时，关闭情绪面板
-  if (sentimentOpen) {
-    sentimentOpen = false;
-    modeSentiment.classList.remove('active');
-    modeKline.classList.add('active');
-    sentimentPanel.classList.remove('active');
-    alertList.style.display = '';
-    hotPanel.style.display  = '';
-    schemeBar.style.display = '';
-  }
-  switchMode('realtime');
-});
-modeReview?.addEventListener('click', () => {
-  // 切换到复盘时，关闭情绪面板
-  if (sentimentOpen) {
-    sentimentOpen = false;
-    modeSentiment.classList.remove('active');
-    modeKline.classList.add('active');
-    sentimentPanel.classList.remove('active');
-    alertList.style.display = '';
-    hotPanel.style.display  = '';
-    schemeBar.style.display = '';
-  }
-  switchMode('review');
-});
 refreshBtn?.addEventListener('click', () => {
   // 旋转动画
   refreshBtn.style.transition = 'transform 0.6s ease';
@@ -738,16 +706,9 @@ refreshBtn?.addEventListener('click', () => {
   }
 
   if (ws && ws.readyState === WebSocket.OPEN) {
-    // 先同步最新方案到后端
     ws.send(JSON.stringify({ action: 'update_schemes', schemes }));
     setTimeout(() => {
-      if (currentMode === 'review') {
-        // 复盘模式：触发后端重新扫描
-        ws.send(JSON.stringify({ action: 'refresh' }));
-      } else {
-        // 盘中模式：请求后端重新推送 init（含最新异动列表）
-        ws.send(JSON.stringify({ action: 'refresh' }));
-      }
+      ws.send(JSON.stringify({ action: 'refresh' }));
     }, 200);
   } else {
     // WS 未连接：尝试重连
@@ -1019,7 +980,7 @@ alertList.addEventListener('click', (e) => {
   if (!card) return;
   const id = card.dataset.id;
   // 从 alerts 中找到对应的数据
-  const allAlerts = currentMode === 'review' ? reviewAlerts : alerts;
+  const allAlerts = alerts;
   const alert = allAlerts.find(a => a.id === id);
   if (alert) {
     selectStock(alert.code, alert.name, alert.change);
@@ -1046,19 +1007,8 @@ function connectWS() {
     renderList();
   };
   ws.onmessage = e => { try { const d = JSON.parse(e.data);
-    if (d.type==='init') { alerts=d.alerts||[]; for(const a of alerts){if(a.klines&&a.klines.length)klinesMap[a.id]=a.klines;} if(d.market)updateMarketLabel(d.market); if(d.review_alerts) reviewAlerts=d.review_alerts; renderList(); }
-    if (d.type==='alerts') { const items=d.items||[],ids=items.map(i=>i.id); for(const a of items){if(a.klines&&a.klines.length)klinesMap[a.id]=a.klines;} alerts=[...items,...alerts].slice(0,200); if(currentMode==='realtime'){renderList(ids); alertList.scrollTop=0;} }
-    if (d.type==='review_progress') {
-      // 显示复盘进度（数据下载/扫描中）
-      const frBtn=document.getElementById('forceReviewBtn');
-      if(frBtn){ frBtn.textContent=`⏳ ${d.msg||'处理中…'}`; frBtn.disabled=true; frBtn.style.opacity='0.7'; }
-      // 在列表区域显示进度提示
-      if(currentMode==='review'){
-        alertList.innerHTML=`<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-title">${d.step==='downloading'?'下载行情数据':'复盘扫描中'}</div><div class="empty-desc" style="font-size:10px;max-width:200px;word-break:break-all;">${esc(d.msg||'')}</div></div>`;
-      }
-    }
-    if (d.type==='review_init' || d.type==='review_alerts') { reviewAlerts=d.alerts||d.items||[]; for(const a of reviewAlerts){if(a.klines&&a.klines.length)klinesMap[a.id]=a.klines;} if(currentMode==='review') renderList(); const frBtn=document.getElementById('forceReviewBtn'); if(frBtn){frBtn.textContent='📋 立即复盘';frBtn.disabled=false;frBtn.style.opacity='';} }
-    if (d.type==='review_update') { const updates=d.updates||{}; for(const a of reviewAlerts){if(updates[a.code]){a.price=updates[a.code].price;a.change=updates[a.code].change;a.speed=updates[a.code].speed||0;a.amount=updates[a.code].amount||a.amount;}} if(currentMode==='review') renderList(); }
+    if (d.type==='init') { alerts=d.alerts||[]; for(const a of alerts){if(a.klines&&a.klines.length)klinesMap[a.id]=a.klines;} if(d.market)updateMarketLabel(d.market); renderList(); }
+    if (d.type==='alerts') { const items=d.items||[],ids=items.map(i=>i.id); for(const a of items){if(a.klines&&a.klines.length)klinesMap[a.id]=a.klines;} alerts=[...items,...alerts].slice(0,200); renderList(ids); alertList.scrollTop=0; }
     if (d.type==='market') updateMarketLabel(d.state);
     if (d.type==='sentiment') { sentimentData = d.data; renderSentimentFromData(d.data); }
     if (d.type==='klines') { drawKlineViewer(d.data); }
@@ -1093,15 +1043,7 @@ function connectWS() {
   ws.onerror = () => ws.close();
 }
 
-/* ── 模式切换 ── */
-function switchMode(mode) {
-  currentMode = mode;
-  modeRealtime.classList.toggle('active', mode === 'realtime');
-  modeReview.classList.toggle('active', mode === 'review');
-  renderSchemeBar();
-  renderList();
-  if (settingsOpen) renderSettings();
-}
+/* ── 模式切换（已统一为选股模式） ── */
 
 /* ── 启动 ── */
 updateMarketLabel('closed');
@@ -1141,17 +1083,15 @@ function renderAlert(a, isNew, enabledNames) {
 
 /* ── 列表渲染 ── */
 function renderList(newIds) {
-  const f = currentMode === 'review' ? reviewAlerts : alerts;
+  const f = alerts;
   const enabledNames = getEnabledSchemeNames();
   // 过滤：只显示至少有一个启用方案匹配的 alert
   const filtered = f.filter(a => {
-    if (!a.matched_schemes || !a.matched_schemes.length) return true; // 无方案标签的保留
+    if (!a.matched_schemes || !a.matched_schemes.length) return true;
     return a.matched_schemes.some(m => enabledNames.has(m));
   });
   if (!filtered.length) {
-    const emptyMsg = currentMode === 'review'
-      ? { icon:'📋', title:'暂无复盘数据', desc:'收盘后自动扫描符合方案的个股' }
-      : { icon:'📡', title: wsConnected?'暂无异动':'等待连接', desc: wsConnected?'等待符合方案的个股…':'python engine/server.py' };
+    const emptyMsg = { icon:'📡', title: wsConnected?'暂无异动':'等待连接', desc: wsConnected?'等待符合方案的个股…':'连接引擎中…' };
     alertList.innerHTML = `<div class="empty-state"><div class="empty-icon">${emptyMsg.icon}</div><div class="empty-title">${emptyMsg.title}</div><div class="empty-desc">${emptyMsg.desc}</div></div>`;
     return;
   }
@@ -1179,41 +1119,8 @@ function renderSchemeBar() {
     return `<button class="${cls}" data-id="${s.id}">${esc(s.name)}</button>`;
   }).join('');
 
-  // 复盘模式下加"立即复盘"按钮
-  if (currentMode === 'review') {
-    const isOpen = marketStatus.classList.contains('open');
-    const disabled = isOpen ? 'disabled title="盘中不可用，请收盘后使用"' : '';
-    const style = isOpen
-      ? 'opacity:0.4;cursor:not-allowed;'
-      : 'background:rgba(99,102,241,0.15);border-color:var(--accent);color:var(--accent);cursor:pointer;';
-    html += `<button id="forceReviewBtn" class="scheme-pill" style="margin-left:auto;flex-shrink:0;${style}" ${disabled}>📋 立即复盘</button>`;
-  }
-
   schemeBar.innerHTML = html;
   schemeBar.querySelectorAll('.scheme-pill').forEach(btn => {
-    if (btn.id === 'forceReviewBtn') {
-      btn.addEventListener('click', () => {
-        if (btn.disabled) return;
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ action: 'update_schemes', schemes }));
-          setTimeout(() => {
-            ws.send(JSON.stringify({ action: 'force_review' }));
-          }, 100);
-          btn.textContent = '⏳ 扫描中…';
-          btn.disabled = true;
-          btn.style.opacity = '0.5';
-          // 3分钟后恢复（防止卡住）
-          setTimeout(() => {
-            btn.textContent = '📋 立即复盘';
-            btn.disabled = false;
-            btn.style.opacity = '';
-          }, 180000);
-        } else {
-          connectWS();
-        }
-      });
-      return;
-    }
     btn.addEventListener('click', () => {
       const sc = schemes.find(x => x.id === btn.dataset.id);
       if (sc) { sc.enabled = !sc.enabled; saveSchemes(); renderSchemeBar(); renderList(); }
