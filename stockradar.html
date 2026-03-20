@@ -683,7 +683,7 @@ opacitySlider?.addEventListener('input', e => { const v=Number(e.target.value)/1
 /* ── WebSocket ── */
 function connectWS() {
   refreshStatus.textContent='连接中…'; refreshDot.style.background='#f59e0b';
-  ws = new WebSocket('ws://localhost:9876');
+  ws = new WebSocket('wss://stockradar-backend-production.up.railway.app');
   ws.onopen = () => {
     wsConnected=true; refreshStatus.textContent='已连接'; refreshDot.style.background='#22c55e';
     ws.send(JSON.stringify({ action: 'update_schemes', schemes }));
